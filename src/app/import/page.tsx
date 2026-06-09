@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Upload, FileSpreadsheet, FileText, Check, AlertTriangle, ChevronDown, Loader2, Calendar, ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import { parseCSV, ParsedTransaction, detectDuplicates } from '@/services/csv-parser'
 import { extractTextFromPDF, parsePDFTransactions, groupTransactionsByMonth, groupTransactionsByDate } from '@/services/pdf-parser'
+import { parseXLS } from '@/services/xls-parser'
 import { useTransactionStore } from '@/hooks/use-transaction-store'
 import { useCategoryStore } from '@/hooks/use-category-store'
 import { useAccountStore } from '@/hooks/use-account-store'
@@ -32,7 +33,7 @@ export default function ImportPage() {
   const [isImporting, setIsImporting] = useState(false)
   const [step, setStep] = useState<'upload' | 'preview' | 'done'>('upload')
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
-  const [fileType, setFileType] = useState<'csv' | 'pdf' | null>(null)
+  const [fileType, setFileType] = useState<'csv' | 'pdf' | 'xls' | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('by-date')
   const [pdfPageCount, setPdfPageCount] = useState(0)
 
@@ -70,6 +71,17 @@ export default function ImportPage() {
       } catch (err) {
         console.error('PDF parse error:', err)
         toast.error('Failed to parse PDF. Try a different file or use CSV export from your bank.')
+        setIsParsing(false)
+      }
+    } else if (ext === 'xls' || ext === 'xlsx') {
+      setFileType('xls')
+      setIsParsing(true)
+      try {
+        const results = await parseXLS(file)
+        finalizeParsed(results)
+      } catch (err) {
+        console.error('XLS parse error:', err)
+        toast.error('Failed to parse Excel file. Try saving as CSV instead.')
         setIsParsing(false)
       }
     } else {
@@ -302,12 +314,12 @@ export default function ImportPage() {
                     <FileSpreadsheet className="h-10 w-10 text-emerald-400/70" />
                   </div>
                   <p className="text-sm font-medium mb-1">Drop your bank statement</p>
-                  <p className="text-xs text-muted-foreground mb-4">PDF or CSV files supported</p>
+                  <p className="text-xs text-muted-foreground mb-4">PDF, CSV, or Excel files supported</p>
                   <label className="cursor-pointer rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/20">
                     Choose File
                     <input
                       type="file"
-                      accept=".csv,.txt,.pdf"
+                      accept=".csv,.txt,.pdf,.xls,.xlsx"
                       onChange={handleFileInput}
                       className="hidden"
                     />
@@ -321,6 +333,7 @@ export default function ImportPage() {
                       { label: 'PDF Bank Statements', desc: 'HDFC, ICICI, SBI, Axis, Kotak, Yes Bank' },
                       { label: 'PDF Credit Card Statements', desc: 'Most Indian banks supported' },
                       { label: 'CSV Bank Exports', desc: 'Standard CSV with date, description, amount' },
+                      { label: 'Excel Files (XLS/XLSX)', desc: 'Bank statement exports in Excel format' },
                       { label: 'UPI Statement PDFs', desc: 'Google Pay, PhonePe, Paytm exports' },
                     ].map(fmt => (
                       <div key={fmt.label} className="flex items-start gap-2 rounded-xl bg-card border border-border/30 p-3">
