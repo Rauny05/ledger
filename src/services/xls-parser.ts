@@ -12,28 +12,19 @@ export async function parseXLS(file: File): Promise<ParsedTransaction[]> {
     const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' })
     if (rows.length === 0) continue
 
-    const headers = Object.keys(rows[0]).map(h => h.toLowerCase().trim())
+    const originalKeys = Object.keys(rows[0])
 
-    const dateCol = headers.find(h => /date|txn.*date|transaction.*date|value.*date/i.test(h))
-    const descCol = headers.find(h => /desc|narr|particular|detail|remark|merchant/i.test(h))
-    const debitCol = headers.find(h => /debit|withdraw|dr/i.test(h))
-    const creditCol = headers.find(h => /credit|deposit|cr/i.test(h))
-    const amountCol = headers.find(h => /amount|value|sum/i.test(h))
-    const refCol = headers.find(h => /ref|reference|txn.*id|transaction.*id|cheque/i.test(h))
+    const findCol = (pattern: RegExp) =>
+      originalKeys.find(k => pattern.test(k.toLowerCase().trim()))
 
-    if (!dateCol && !descCol) continue
+    const dateKey = findCol(/date|txn.*date|transaction.*date|value.*date/)
+    const descKey = findCol(/desc|narr|particular|detail|remark|merchant/)
+    const debitKey = findCol(/debit|withdraw|dr/)
+    const creditKey = findCol(/credit|deposit|cr/)
+    const amountKey = findCol(/amount|value|sum/)
+    const refKey = findCol(/ref|reference|txn.*id|transaction.*id|cheque/)
 
-    const getOrigKey = (lowerKey: string | undefined) => {
-      if (!lowerKey) return undefined
-      return Object.keys(rows[0]).find(k => k.toLowerCase().trim() === lowerKey)
-    }
-
-    const dateKey = getOrigKey(dateCol)
-    const descKey = getOrigKey(descCol)
-    const debitKey = getOrigKey(debitCol)
-    const creditKey = getOrigKey(creditCol)
-    const amountKey = getOrigKey(amountCol)
-    const refKey = getOrigKey(refCol)
+    if (!dateKey && !descKey) continue
 
     for (const row of rows) {
       const rawDate = dateKey ? row[dateKey] : ''
@@ -82,7 +73,7 @@ export async function parseXLS(file: File): Promise<ParsedTransaction[]> {
 }
 
 function parseDate(value: unknown): string | null {
-  if (value instanceof Date) {
+  if (value instanceof Date && !isNaN(value.getTime())) {
     const y = value.getFullYear()
     const m = String(value.getMonth() + 1).padStart(2, '0')
     const d = String(value.getDate()).padStart(2, '0')
@@ -117,6 +108,17 @@ function parseDate(value: unknown): string | null {
     let year = mdy[3]
     if (year.length === 2) year = `20${year}`
     if (month) return `${year}-${month}-${day}`
+  }
+
+  // Excel serial date number
+  if (typeof value === 'number' && value > 30000 && value < 60000) {
+    const date = new Date((value - 25569) * 86400000)
+    if (!isNaN(date.getTime())) {
+      const y = date.getFullYear()
+      const m = String(date.getMonth() + 1).padStart(2, '0')
+      const d = String(date.getDate()).padStart(2, '0')
+      return `${y}-${m}-${d}`
+    }
   }
 
   return null
