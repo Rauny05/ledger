@@ -1,7 +1,7 @@
-import * as XLSX from 'xlsx'
 import { ParsedTransaction, categorizeTransaction, detectPaymentMethod } from './csv-parser'
 
 export async function parseXLS(file: File): Promise<ParsedTransaction[]> {
+  const XLSX = await import('xlsx')
   const data = await file.arrayBuffer()
   const workbook = XLSX.read(data, { type: 'array', cellDates: true })
 
