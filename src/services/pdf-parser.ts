@@ -1,11 +1,11 @@
 import { ParsedTransaction, categorizeTransaction, detectPaymentMethod } from './csv-parser'
 
 export async function extractTextFromPDF(file: File): Promise<string[]> {
-  const mod = await import('pdfjs-dist')
-  // pdfjs-dist v6 may expose exports on .default in some bundlers
+  // Using pdfjs-dist v3 — stable, widely supported, cdnjs worker available
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pdfjsLib = (mod as any).default ?? mod
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`
+  const pdfjsLib = await import('pdfjs-dist') as any
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
 
   const arrayBuffer = await file.arrayBuffer()
   const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise
