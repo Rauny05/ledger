@@ -1,11 +1,14 @@
 import { ParsedTransaction, categorizeTransaction, detectPaymentMethod } from './csv-parser'
 
 export async function extractTextFromPDF(file: File): Promise<string[]> {
-  const pdfjsLib = await import('pdfjs-dist')
+  const mod = await import('pdfjs-dist')
+  // pdfjs-dist v6 may expose exports on .default in some bundlers
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pdfjsLib = (mod as any).default ?? mod
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`
 
   const arrayBuffer = await file.arrayBuffer()
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise
   const pages: string[] = []
 
   for (let i = 1; i <= pdf.numPages; i++) {
