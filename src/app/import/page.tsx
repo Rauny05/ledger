@@ -70,7 +70,8 @@ export default function ImportPage() {
         finalizeParsed(results)
       } catch (err) {
         console.error('PDF parse error:', err)
-        toast.error('Failed to parse PDF. Try a different file or use CSV export from your bank.')
+        const msg = err instanceof Error ? err.message : 'Unknown error'
+        toast.error(`PDF parse failed: ${msg}`, { duration: 6000 })
         setIsParsing(false)
       }
     } else if (ext === 'xls' || ext === 'xlsx') {
@@ -78,10 +79,16 @@ export default function ImportPage() {
       setIsParsing(true)
       try {
         const results = await parseXLS(file)
-        finalizeParsed(results)
+        if (results.length === 0) {
+          toast.error('No transactions found. Check that your Excel file has Date, Description, and Amount columns.', { duration: 6000 })
+          setIsParsing(false)
+        } else {
+          finalizeParsed(results)
+        }
       } catch (err) {
         console.error('XLS parse error:', err)
-        toast.error('Failed to parse Excel file. Try saving as CSV instead.')
+        const msg = err instanceof Error ? err.message : 'Unknown error'
+        toast.error(`Excel parse failed: ${msg}`, { duration: 6000 })
         setIsParsing(false)
       }
     } else {
